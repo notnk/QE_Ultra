@@ -1,0 +1,413 @@
+//@version=6
+
+indicator('QE', overlay=true)
+
+string GRP1             = "════════ Modes ═════════"
+toggleDarkColors = input(title="Dark Mode", defval=true, group = GRP1, tooltip = 'Select this if you use a dark color theme')
+toggleMiniMode = false
+datasize = input.int(4, 'Long Mode ?', minval = 4, inline='line 3', group=GRP1, tooltip = 'Input the number of previous quarters to be displayed in the table') +5
+
+string GRP2             = "════════ Table Options ═════════"
+string tablesize = input.string("auto",  "Size",      inline = "21", group = GRP2, options = ["tiny", "small", "normal", "large", "huge", "auto"])
+string tableposY = input.string("bottom", "↕",         inline = "21", group = GRP2, options = ["top", "middle", "bottom"])
+string tableposX = input.string("right",   "↔",         inline = "21", group = GRP2, options = ["left", "center", "right"])
+bool pivots = input.bool( false,"on/off?")
+per = 'FQ'
+
+FrameCol = toggleDarkColors ? color.new(#999999, 50) : color.rgb(241, 241, 241)
+BorderCol = toggleDarkColors ? color.new(#999999, 50) : color.rgb(241, 241, 241)
+
+TextColor = toggleDarkColors ? color.new(color.white, 0): color.new(color.black, 0)
+BGColor = toggleDarkColors ? color.new(color.white, 100): color.new(color.black, 100)
+HeadColor = toggleDarkColors ? color.new(color.white, 100): color.new(color.black, 100)
+BodyColor = toggleDarkColors ? color.new(color.white, 100): color.new(color.black, 100)
+UpColor = toggleDarkColors ? color.new(color.lime, 0) : color.new(color.rgb(31, 12, 239, 16), 0)
+DownColor = toggleDarkColors ? color.new(color.red, 0) : color.new(color.rgb(213, 27, 182), 10)
+UnchangedColor = toggleDarkColors ? color.new(color.yellow, 0) : color.new(color.orange, 30)
+
+ema9 = ta.ema(close, 9)
+ema21 = ta.ema(close, 21)
+ema50 = ta.ema(close, 50)
+ema100 = ta.ema(close, 100)
+
+// var table t2 = table.new(position.bottom_center,columns = 4,rows = 4,bgcolor = BGColor, frame_color=FrameCol, frame_width=1,border_color=BorderCol, border_width=1)
+
+
+financial01 = 'EBITDA_MARGIN'
+financial02 = 'TOTAL_REVENUE'
+financial03 = 'EBIT'
+financial04 = 'PRICE_EARNINGS_FORWARD'
+financial05 = 'TOTAL_DEBT'
+financial06 = 'NET_INCOME'
+financial07 = 'EARNINGS_ESTIMATE'
+financial08 = 'SALES_ESTIMATES'
+
+
+
+
+financial01id = 'EBITDA_MARGIN'
+financial02id = 'TOTAL_REVENUE',
+financial03id = 'EBIT',
+financial04id = 'PRICE_EARNINGS_FORWARD'
+financial05id = 'TOTAL_DEBT'
+financial06id = 'NET_INCOME'
+financial07id = 'EARNINGS_ESTIMATE'
+financial08id = 'SALES_ESTIMATES'
+
+
+
+
+getFinFQ(_id, _per) => 
+    _financials = request.financial(syminfo.tickerid, _id, _per, barmerge.gaps_on, ignore_invalid_symbol = true)
+    if _id == financial02id 
+        _financials := math.round(_financials / 10.0, 2)
+    _financials
+
+
+f_array(arrayId, val)    => 
+    array.unshift(arrayId, val)
+    array.pop(arrayId)
+
+
+finID1  = financial01 
+finID2  = financial02
+finID3  = financial03
+finID4  = financial04
+finID5  = financial05
+finID6  = financial06
+finID7  = financial07
+finID8  = financial08
+
+
+
+
+get_finx(finID) =>
+    finx = switch finID
+        financial02  => financial02id
+        financial01  => financial01id
+        financial03  => financial03id
+        financial04  => financial04id
+        financial05  => financial05id
+        financial06  => financial06id
+        financial07  => financial07id
+        financial08  => financial08id
+    finx
+
+
+// Reference if data is true
+rev = request.financial(syminfo.tickerid,'TOTAL_REVENUE',per,barmerge.gaps_on, ignore_invalid_symbol=true)
+
+finx1 = get_finx(finID1)
+finx2 = get_finx(finID2)
+finx3 = get_finx(finID3)
+finx4 = get_finx(finID4)
+finx5 = get_finx(finID5)
+finx6 = get_finx(finID6)
+finx7 = get_finx(finID7)
+finx8 = get_finx(finID8)
+
+
+
+finData1 = getFinFQ(finx1, per)
+finData2 = getFinFQ(finx2, per)
+finData3 = getFinFQ(finx3, per)
+finData4 = getFinFQ(finx4, per)
+finData5 = getFinFQ(finx5, per)
+finData6 = getFinFQ(finx6, per)
+finData7 = getFinFQ(finx7, per)
+finData8 = getFinFQ(finx8, per)
+
+
+
+var date = array.new_int(datasize)  
+var arrayFinData1 = array.new_float(datasize) 
+var arrayFinData2 = array.new_float(datasize)  
+var arrayFinData3 = array.new_float(datasize)  
+var arrayFinData4 = array.new_float(datasize)  
+var arrayFinData5 = array.new_float(datasize)  
+var arrayFinData6 = array.new_float(datasize)  
+var arrayFinData7 = array.new_float(datasize)  
+var arrayFinData8 = array.new_float(datasize)  
+
+
+EPS = request.financial(syminfo.tickerid, "EARNINGS_PER_SHARE", "TTM")
+PE = close / EPS
+free_float = nz(request.financial(syminfo.tickerid, 'FLOAT_SHARES_OUTSTANDING', 'FY'))
+outstanding = request.financial(syminfo.tickerid, "TOTAL_SHARES_OUTSTANDING", "FQ")
+roe = math.round(request.financial(syminfo.tickerid, "RETURN_ON_EQUITY", "FQ"))
+
+
+if rev !=0
+    f_array(date,  time)
+    f_array(arrayFinData1, finData1)
+    f_array(arrayFinData2, finData2)
+    f_array(arrayFinData3, finData3)
+    f_array(arrayFinData4, finData4)
+    f_array(arrayFinData5, finData5)
+    f_array(arrayFinData6, finData6)
+    f_array(arrayFinData7, finData7)
+    f_array(arrayFinData8, finData8)
+
+ft(_table, _column, _row, _value) => 
+    table.cell(table_id = _table, column = _column, row = _row, text = _value, bgcolor = HeadColor, text_color = TextColor, text_size = tablesize)
+
+ftdate(_table, _column, _row, _value) => 
+    _new_value = str.contains(_value, "70") ? "" : _value
+    table.cell(table_id = _table, column = _column, row = _row, text = _new_value, bgcolor = BodyColor, text_color = TextColor, text_size = tablesize, text_halign = text.align_left )
+
+fcell(finID, _table, _column, _row, _value, _i) =>  
+    divider = 0
+    divider     := 
+         finID == 'EPS' ? 1 : 1000000
+    suffix      =  
+         finID == 'EPS' or finID == financial02 ? '' :  ' M'
+    strFormat   =  
+         finID == 'EPS' ? '#.#' : finID == financial02 ? '#,###.#' : '#,##0' 
+    val = array.get(_value, _i)/ divider
+    table.cell(table_id = _table,  column = _column, row = _row, text = na(val) ? "" : str.tostring(val, strFormat) +suffix,  text_color = TextColor,  text_size = tablesize)
+
+    
+
+fyoy(_table, _column, _row, _value, _i, _cmpr) =>  
+    sym = ""  
+    dif = 0.0 
+    if na(_value)
+        na
+    else
+        val1 = array.get(_value, _i)
+        val2 = array.get(_value, _i+_cmpr)
+        val1 := val1 == 0 ? 1 : val1
+        val2 := math.round(val2, 1) == 0 or math.round(val2, 1) == -0 ? 0.1 : val2
+        dif := math.round(((val1-val2) / math.abs(val2)) * 100) // Change to absolute value
+        sym := na(dif) ? "" : dif > 0 ? '+'+str.tostring(dif)+'%' : str.tostring(dif)+'%'
+
+    
+    table.cell( table_id = _table,  column = _column, row = _row, text = na(dif) ? "●" : toggleMiniMode ? "●" : sym,text_halign = text.align_right, text_color = na(dif) ? FrameCol : dif >0 ? UpColor : dif <0 ? DownColor : dif ==0 ? UnchangedColor : FrameCol,text_size = tablesize)
+    
+
+plot(ema9, color=color.aqua, title="EMA9")
+plot(ema21, color=color.olive, title="EMA21")
+plot(ema50, color=#5a7890, title="EMA50")
+plot(ema100, color=color.rgb(10, 109, 109), title="EMA50")
+
+
+ff = na(ta.vwap) ? free_float / 10000000 : free_float * ta.vwap / 10000000
+validated_ff = na(ff) or nz(ff) == 0 ? '' : str.tostring(math.round(ff)) + ' Cr'
+
+mc = outstanding*close / 10000000
+validated_mc = na(mc) or nz(mc) == 0 ? '' : str.tostring(math.round(mc,0)) + ' Cr'
+
+
+var table t = table.new(tableposY + "_" + tableposX, columns = 10, rows = datasize, bgcolor = BGColor, frame_color=FrameCol, frame_width=1,border_color=BorderCol, border_width=1)
+
+
+string PRString = str.tostring(PE, "#.##")
+string pe1 = str.format("pe {0}'", PRString)
+string freefloat = str.format("ff {0}'", validated_ff)
+string marketcap = str.format("mcap {0}", validated_mc)
+string roetext = str.format("roe {0}%", roe)
+
+string mcff = str.format("{0} | {1} | {2} | {3}", marketcap,freefloat,pe1,roetext)
+
+industry = syminfo.industry
+sector= syminfo.sector
+
+string finalsec = str.format("{0} | {1}",industry,sector )
+
+
+if barstate.islast and not toggleMiniMode
+    table.merge_cells(t, 0, 1, 7, 1)
+    table.merge_cells(t, 0, 0, 7, 0)
+    ft(t,0,1,finalsec)
+    ft(t,0,0,mcff)
+    ft(t,0,2,"FQ")
+    ft(t,1,2,"PAT")
+    ft(t,2,2,'YoY%')
+    ft(t,3,2,'QoQ%')
+    ft(t,4,2,"Sales")
+    ft(t,5,2,'YoY%')
+    ft(t,6,2,'QoQ%')
+    ft(t,7,2,"OPM%")
+    // ft(t,8,2,"EBITDA%")
+
+
+if barstate.islast
+    if not toggleMiniMode
+        for i = 0 to datasize-5
+            ftdate(t, 0, i+3, str.format('{0, date, MMM-yy}', array.get(date, i)))
+            pat=math.round(array.get(arrayFinData6,i)/ 10000000,0)
+            table.cell(table_id = t,column = 1,row = i+3,text = na(pat)?"":str.tostring(pat),text_color = TextColor,text_size=tablesize)
+            fyoy(t, 2, i+3, arrayFinData6, i, per == 'FY' ? 1 : 4)
+            fyoy(t, 3, i+3, arrayFinData6, i, per == 'FQ' ? 1 : 4)
+            fcell(finID=finID2, _table=t, _column=4, _row=i+3, _value=arrayFinData2, _i=i)
+            fyoy(t, 5, i+3, arrayFinData2, i, per == 'FY' ? 1 : 4)
+            fyoy(t, 6, i+3, arrayFinData2, i, per == 'FQ' ? 1 : 4)
+            opm=math.round((array.get(arrayFinData3, i) / array.get(arrayFinData2, i)) * 10)
+            table.cell(t, 7, i+3,text = na(opm)!=true?((opm >=0?"+":"-")+str.tostring(opm)+"%" ):"●",text_color= na(opm)?FrameCol:opm>0?UpColor:DownColor,text_size=tablesize)
+            // fcell(finID=finID1, _table=t, _column=8, _row=i+3, _value=arrayFinData1, _i=i)
+            // table.cell(t,8,i+3,text= na(array.get(arrayFinData1, i))!=true?((array.get(arrayFinData1, i) >=0?"+":"-")+str.tostring(math.round(array.get(arrayFinData1, i),0))+"%" ):"●",text_color =  na(array.get(arrayFinData1, i))?FrameCol:opm>0?UpColor:DownColor,text_size=tablesize)
+
+// est_esp = request.financial(syminfo.tickerid, "EARNINGS_ESTIMATE","FQ")
+
+// table.cell(t2,2,1,str.tostring(array.get(arrayFinData7, 1)))
+
+
+pivotTypeInput = input.string(title="Type", defval="Camarilla", options=["Off","Traditional", "Fibonacci", "Woodie", "Classic", "DM", "Camarilla"])
+pivotAnchorInput = input.string(title="Pivots Timeframe", defval="Auto", options=["Auto", "Daily", "Weekly", "Monthly", "Quarterly", "Yearly", "Biyearly", "Triyearly", "Quinquennially", "Decennially"])
+maxHistoricalPivotsInput = input.int(title="Number of Pivots Back", defval=5, minval=1, maxval=200, display = display.data_window)
+isDailyBasedInput = input.bool(title="Use Daily-based Values", defval=true, display = display.data_window, tooltip="When this option is unchecked, Pivot Points will use intraday data while calculating on intraday charts. If Extended Hours are displayed on the chart, they will be taken into account during the pivot level calculation. If intraday OHLC values are different from daily-based values (normal for stocks), the pivot levels will also differ.")
+showLabelsInput = input.bool(title="Show Labels", defval=true, group="labels", display = display.data_window)
+showPricesInput = input.bool(title="Show Prices", defval=false, group="labels", display = display.data_window)
+positionLabelsInput = input.string("Left", "Labels Position", options=["Left", "Right"], group="labels", display = display.data_window)
+linewidthInput = input.int(title="Line Width", defval=1, minval=1, maxval=100, group="levels", display = display.data_window)
+
+DEFAULT_COLOR = #FB8C00
+pColorInput = input.color(#6d2c79, "P‏  ‏  ‏", inline="P", group="levels", display = display.data_window)
+pShowInput = input.bool(false, "", inline="P", group="levels", display = display.data_window)
+s1ColorInput = input.color(DEFAULT_COLOR, "S1", inline="S1/R1" , group="levels", display = display.data_window)
+s1ShowInput = input.bool(false, "", inline="S1/R1", group="levels", display = display.data_window)
+r1ColorInput = input.color(DEFAULT_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R1", inline="S1/R1", group="levels", display = display.data_window)
+r1ShowInput = input.bool(false, "", inline="S1/R1", group="levels", display = display.data_window)
+s2ColorInput = input.color(DEFAULT_COLOR, "S2", inline="S2/R2", group="levels", display = display.data_window)
+s2ShowInput = input.bool(false, "", inline="S2/R2", group="levels", display = display.data_window)
+r2ColorInput = input.color(DEFAULT_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R2", inline="S2/R2", group="levels", display = display.data_window)
+r2ShowInput = input.bool(false, "", inline="S2/R2", group="levels", tooltip = "Not applicable to DM", display = display.data_window)
+s3ColorInput = input.color(#38c58f, "S3", inline="S3/R3", group="levels", display = display.data_window)
+s3ShowInput = input.bool(false, "", inline="S3/R3", group="levels", display = display.data_window)
+r3ColorInput = input.color(#38c58f, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R3", inline="S3/R3", group="levels", display = display.data_window)
+r3ShowInput = input.bool(false, "", inline="S3/R3", group="levels", tooltip = "Not applicable to DM", display = display.data_window)
+s4ColorInput = input.color(#1ee7ee, "S4", inline="S4/R4", group="levels", display = display.data_window)
+s4ShowInput = input.bool(false, "", inline="S4/R4", group="levels", display = display.data_window)
+r4ColorInput = input.color(#1ee7ee, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R4", inline="S4/R4", group="levels", display = display.data_window)
+r4ShowInput = input.bool(false, "", inline="S4/R4", group="levels", tooltip = "Not applicable to: Fibonacci, DM", display = display.data_window)
+s5ColorInput = input.color(color.rgb(236, 32, 117), "S5", inline="S5/R5", group="levels", display = display.data_window)
+s5ShowInput = input.bool(false, "", inline="S5/R5", group="levels", display = display.data_window)
+r5ColorInput = input.color(color.rgb(236, 32, 117), "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R5", inline="S5/R5", group="levels", display = display.data_window)
+r5ShowInput = input.bool(false, "", inline="S5/R5", group="levels", tooltip = "Not applicable to: Fibonacci, Woodie, Classic, DM", display = display.data_window)
+
+type graphicSettings
+    string levelName
+    color levelColor
+    bool showLevel
+
+var graphicSettingsArray = array.from(
+      graphicSettings.new(" P", pColorInput, pShowInput),
+      graphicSettings.new("R1", r1ColorInput, r1ShowInput), graphicSettings.new("S1", s1ColorInput, s1ShowInput),
+      graphicSettings.new("R2", r2ColorInput, r2ShowInput), graphicSettings.new("S2", s2ColorInput, s2ShowInput),
+      graphicSettings.new("R3", r3ColorInput, r3ShowInput), graphicSettings.new("S3", s3ColorInput, s3ShowInput),
+      graphicSettings.new("R4", r4ColorInput, r4ShowInput), graphicSettings.new("S4", s4ColorInput, s4ShowInput),
+      graphicSettings.new("R5", r5ColorInput, r5ShowInput), graphicSettings.new("S5", s5ColorInput, s5ShowInput))
+
+autoAnchor = switch
+    timeframe.isintraday => timeframe.multiplier <= 15 ? "1D" : "1W"
+    timeframe.isdaily    => "1M"
+    => "12M"
+
+pivotTimeframe = switch pivotAnchorInput
+    "Auto"      => autoAnchor
+    "Daily"     => "1D"
+    "Weekly"    => "1W"
+    "Monthly"   => "1M"
+    "Quarterly" => "3M"
+    => "12M"
+
+//@variable The number of years in the selected Pivot period
+pivotYearMultiplier = switch pivotAnchorInput
+    "Biyearly"       => 2
+    "Triyearly"      => 3
+    "Quinquennially" => 5
+    "Decennially"    => 10
+    => 1
+
+//@variable The number of values in the pivots of the selected type
+numOfPivotLevels = switch pivotTypeInput
+    "Traditional" => 11
+    "Camarilla"   => 5
+    "Woodie"      => 9
+    "Classic"     => 9
+    "Fibonacci"   => 7
+    "DM"          => 3
+
+type pivotGraphic
+    line pivotLine
+    label pivotLabel
+
+method delete(pivotGraphic graphic) =>
+    graphic.pivotLine.delete()
+    graphic.pivotLabel.delete()
+
+var drawnGraphics = matrix.new<pivotGraphic>()
+
+localPivotTimeframeChange = timeframe.change(pivotTimeframe) and year % pivotYearMultiplier == 0
+securityPivotTimeframeChange = timeframe.change(timeframe.period) and year % pivotYearMultiplier == 0
+
+pivotTimeframeChangeCounter(condition) => 
+    var count = 0
+    if condition and bar_index > 0
+        count += 1
+    count
+
+localPivots = ta.pivot_point_levels(pivotTypeInput, localPivotTimeframeChange)
+securityPivotPointsArray = ta.pivot_point_levels(pivotTypeInput, securityPivotTimeframeChange)
+
+securityTimeframe = timeframe.isintraday ? "1D" : timeframe.period
+[securityPivots, securityPivotCounter] = request.security(syminfo.tickerid, pivotTimeframe, [securityPivotPointsArray, pivotTimeframeChangeCounter(securityPivotTimeframeChange)], lookahead = barmerge.lookahead_on)
+pivotPointsArray = isDailyBasedInput ? securityPivots : localPivots
+
+//@function Sets the ending points of the currently active pivots to `endTime`.
+affixOldPivots(endTime) =>
+    if drawnGraphics.rows() > 0
+        lastGraphics = drawnGraphics.row(drawnGraphics.rows() - 1)
+
+        for graphic in lastGraphics
+            graphic.pivotLine.set_x2(endTime)
+            if positionLabelsInput == "Right"
+                graphic.pivotLabel.set_x(endTime)
+
+//@function Draws pivot lines and labels from `startTime` to the approximate end of the period.
+drawNewPivots(startTime) =>
+    
+    newGraphics = array.new<pivotGraphic>()
+
+    for [index, coord] in pivotPointsArray
+        levelSettings = graphicSettingsArray.get(index)
+        if not na(coord) and levelSettings.showLevel
+            lineEndTime = startTime + timeframe.in_seconds(pivotTimeframe) * 1000 * pivotYearMultiplier
+            pivotLine = line.new(startTime, coord, lineEndTime, coord, xloc = xloc.bar_time, color=levelSettings.levelColor, width=linewidthInput)
+            pivotLabel = label.new(x = positionLabelsInput == "Left" ? startTime : lineEndTime,
+                               y = coord,
+                               text = (showLabelsInput ? levelSettings.levelName + " " : "") + (showPricesInput ? "(" + str.tostring(coord, format.mintick) + ")" : ""),
+                               style = positionLabelsInput == "Left" ? label.style_label_right : label.style_label_left,
+                               textcolor = levelSettings.levelColor,
+                               color = #00000000,
+                               xloc=xloc.bar_time)
+            
+            newGraphics.push(pivotGraphic.new(pivotLine, pivotLabel))
+    
+    drawnGraphics.add_row(array_id = newGraphics)
+
+    if drawnGraphics.rows() > maxHistoricalPivotsInput
+        oldGraphics = drawnGraphics.remove_row(0)
+        
+        for graphic in oldGraphics
+            graphic.delete()
+
+
+localPivotDrawConditionStatic = not isDailyBasedInput and localPivotTimeframeChange
+securityPivotDrawConditionStatic = isDailyBasedInput and securityPivotCounter != securityPivotCounter[1]
+
+var isMultiYearly = array.from("Biyearly", "Triyearly", "Quinquennially", "Decennially").includes(pivotAnchorInput)
+localPivotDrawConditionDeveloping = not isDailyBasedInput and time_close == time_close(pivotTimeframe) and not isMultiYearly 
+securityPivotDrawConditionDeveloping = false
+
+if (securityPivotDrawConditionStatic or localPivotDrawConditionStatic)
+    affixOldPivots(time)
+    drawNewPivots(time)
+
+// If possible, draw pivots from the beginning of the chart if none were found
+var FIRST_BAR_TIME = time
+if (barstate.islastconfirmedhistory and drawnGraphics.columns() == 0)
+
+    if not na(securityPivots) and securityPivotCounter > 0
+        if isDailyBasedInput
+            drawNewPivots(FIRST_BAR_TIME)
