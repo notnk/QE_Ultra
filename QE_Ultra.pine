@@ -243,26 +243,14 @@ if barstate.islast
             fyoy(t, 6, i+3, arrayFinData2, i, per == 'FQ' ? 1 : 4)
             opm=math.round((array.get(arrayFinData3, i) / array.get(arrayFinData2, i)) * 10)
             table.cell(t, 7, i+3,text = na(opm)!=true?((opm >=0?"+":"")+str.tostring(opm)+"%" ):"●",text_color= na(opm)?FrameCol:opm>0?UpColor:DownColor,text_size=tablesize)
-            // fcell(finID=finID1, _table=t, _column=8, _row=i+3, _value=arrayFinData1, _i=i)
-            // table.cell(t,8,i+3,text= na(array.get(arrayFinData1, i))!=true?((array.get(arrayFinData1, i) >=0?"+":"-")+str.tostring(math.round(array.get(arrayFinData1, i),0))+"%" ):"●",text_color =  na(array.get(arrayFinData1, i))?FrameCol:opm>0?UpColor:DownColor,text_size=tablesize)
-
-// est_esp = request.financial(syminfo.tickerid, "EARNINGS_ESTIMATE","FQ")
-
-// table.cell(t2,2,1,str.tostring(array.get(arrayFinData7, 1)))
-length = input.int(10, minval=1, title="Liquidity rush")
-// price_length = input.int(5, minval=1, title="price_length")
-// Calculate VWAP using built-in function
-vwap = ta.vwap
-ema = ta.ema(close,length)
-sma = ta.sma(close,length)
 
 
-// Calculate the Average Volume (SMA of volume over the input length)
-averageVolume = ta.sma( volume, length) 
-
-// Calculate the Average Rupee Value Buying
+// liquidity rush            
+length = input.int(15, minval=1, title="Liquidity rush")
+adjusted_length = math.max(1, math.min(length, bar_index))
+sma = ta.sma(close,adjusted_length)
+averageVolume = ta.sma( volume, adjusted_length) 
 averageRupeeValueBuying = (vwap* averageVolume)/ 10000000
-
 if barstate.islast
     label.new(bar_index, high + (high * 0.03), str.tostring(averageRupeeValueBuying, "#.##")+" Cr", color=#1f9423, textcolor=TextColor, style=label.style_label_down)
 
