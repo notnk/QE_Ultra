@@ -250,7 +250,7 @@ length = input.int(15, minval=1, title="Liquidity rush")
 adjusted_length = math.max(1, math.min(length, bar_index))
 sma = ta.sma(close,adjusted_length)
 averageVolume = ta.sma( volume, adjusted_length) 
-averageRupeeValueBuying = (vwap* averageVolume)/ 10000000
+averageRupeeValueBuying = (sma* averageVolume)/ 10000000
 if barstate.islast
     label.new(bar_index, high + (high * 0.03), str.tostring(averageRupeeValueBuying, "#.##")+" Cr", color=#1f9423, textcolor=TextColor, style=label.style_label_down)
 
