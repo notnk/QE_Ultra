@@ -254,7 +254,10 @@ averageRupeeValueBuying = (vwap* averageVolume)/ 10000000
 if barstate.islast
     label.new(bar_index, high + (high * 0.03), str.tostring(averageRupeeValueBuying, "#.##")+" Cr", color=#1f9423, textcolor=TextColor, style=label.style_label_down)
 
-
+//insidebar ploting 
+isInsideBar() =>
+    high[1] >= high and low[1] <= low
+plotshape(isInsideBar() ? high : na, title="Inside Bar", location=location.abovebar, style=shape.arrowdown, size=size.tiny,color = color.aqua)
 
 pivotTypeInput = input.string(title="Type", defval="Camarilla", options=["Off","Traditional", "Fibonacci", "Woodie", "Classic", "DM", "Camarilla"])
 pivotAnchorInput = input.string(title="Pivots Timeframe", defval="Auto", options=["Auto", "Daily", "Weekly", "Monthly", "Quarterly", "Yearly", "Biyearly", "Triyearly", "Quinquennially", "Decennially"])
