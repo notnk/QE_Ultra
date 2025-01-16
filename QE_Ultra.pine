@@ -228,7 +228,7 @@ string freefloat = str.format("ff {0}'", validated_ff)
 string marketcap = str.format("mcap {0}", validated_mc)
 string roetext = str.format("roe {0}%", roe)
 
-string mcff = str.format("{0} | {1} | {2} | {3}", marketcap,"ff "+FreeFloatStr,pe1,"Debt/EQ: "+DebtToEquity)
+string mcff = str.format("{0} | {1} | {2}", marketcap,"ff "+FreeFloatStr,"Debt/EQ: "+DebtToEquity)
 
 industry = syminfo.industry
 sector= syminfo.sector
@@ -269,7 +269,7 @@ var opmHistory = map.new<int, float>()
 if hasNewResults
     currentBasicEps = math.round(BasicEPS, 2)
     epsHistory.put(DiffInQ, currentBasicEps)
-    peHistory.put(DiffInQ, math.round(close/(currentBasicEps * 4), 2))
+    peHistory.put(DiffInQ, math.round(close/(currentBasicEps * 4), 1))
 
 if barstate.islast and not toggleMiniMode
     table.merge_cells(t, 0, 1, 8, 1)
@@ -300,7 +300,7 @@ if barstate.islast
             fyoy(t, 6, i+3, arrayFinData2, i, per == 'FQ' ? 1 : 4)
             opm=math.round((array.get(arrayFinData3, i) / array.get(arrayFinData2, i)) * 10)
             table.cell(t, 7, i+3,text = na(opm)!=true?((opm >=0?"+":"")+str.tostring(opm)+"%" ):"●",text_color= na(opm)?FrameCol:opm>0?UpColor:DownColor,text_size=tablesize)
-            table.cell(t, 8, i+3, text= str.tostring(peHistory.get(i+2)),text_color =TextColor )
+            table.cell(t, 8, i+3, text= na(peHistory.get(i+2))?"":str.tostring(peHistory.get(i+2)),text_color =TextColor )
 
             // fcell(finID=finID1, _table=t, _column=8, _row=i+3, _value=arrayFinData1, _i=i)
             // table.cell(t,8,i+3,text= na(array.get(arrayFinData1, i))!=true?((array.get(arrayFinData1, i) >=0?"+":"-")+str.tostring(math.round(array.get(arrayFinData1, i),0))+"%" ):"●",text_color =  na(array.get(arrayFinData1, i))?FrameCol:opm>0?UpColor:DownColor,text_size=tablesize)
